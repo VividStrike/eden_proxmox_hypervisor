@@ -11,26 +11,26 @@ This repository documents the network segmentation, hardware virtualization (VFI
 
 ```mermaid
 flowchart TD
-    Admin["Admin Workstation<br/>(House LAN: 192.168.0.x/24)"]
+    Admin["Admin Workstation<br/>House LAN: 192.168.0.x/24"]
     
-    Admin -->|"Direct Local LAN Access<br/>(HTTPS Management, Moonlight & Scoped Media)"| vmbr0["Proxmox Layer-2 Bridge (vmbr0)<br/>Physical Uplink: 192.168.0.0/24"]
-    Admin -->|"Admin WireGuard Tunnel<br/>(UDP WireGuard — Enclave Entry)"| vmbr0
+    Admin -->|"Local LAN Access<br/>HTTPS GUI & Moonlight"| vmbr0["Proxmox Bridge (vmbr0)<br/>Physical Uplink<br/>192.168.0.0/24"]
+    Admin -->|"Admin WireGuard VPN<br/>Enclave Entry Only"| vmbr0
     
-    vmbr0 --> PVE["Proxmox VE Hypervisor<br/>UPS-Protected | 16TB NAS Storage Pool"]
-    vmbr0 --> Catnip["VM 500: Windows Workstation (catnip)<br/>VFIO PCIe GPU Passthrough (RX 6800 XT)<br/>Local Low-Latency Moonlight Host"]
-    vmbr0 --> WAN["OPNsense WAN Interface (vtnet0)<br/>Top-Down Perimeter Block + Relay Bypass Rule"]
+    vmbr0 --> PVE["Proxmox VE Host<br/>UPS-Protected<br/>16TB NAS Storage"]
+    vmbr0 --> Catnip["VM 500: catnip (Win11)<br/>VFIO GPU Passthrough<br/>RX 6800 XT (Moonlight)"]
+    vmbr0 --> WAN["OPNsense WAN (vtnet0)<br/>Perimeter Block Rules<br/>+ Relay Bypass"]
     
-    WAN --> WG["Assigned WireGuard Interface (opt1 / wg1)<br/>+ Suricata IDS | Tunnel: 10.10.10.0/24"]
-    WG -->|"Authenticated Admin Peer<br/>(10.10.10.x/32)"| LAN["OPNsense LAN Gateway (vtnet1)<br/>192.168.20.1/24"]
-    LAN --> vmbr1["Primary Isolated Switch (vmbr1)<br/>192.168.20.0/24 — No Physical NIC"]
+    WAN --> WG["WireGuard (opt1 / wg1)<br/>+ Suricata IDS<br/>Subnet: 10.10.10.0/24"]
+    WG -->|"Authenticated Peer<br/>10.10.10.x/32"| LAN["OPNsense LAN (vtnet1)<br/>Gateway: 192.168.20.1/24"]
+    LAN --> vmbr1["Isolated Switch (vmbr1)<br/>192.168.20.0/24<br/>No Physical NIC"]
     
-    vmbr1 --> AppHost["CT 400: Application Host (marigold)<br/>Docker Runtime + Gluetun Egress Killswitch"]
-    vmbr1 --> Proto["CT 200: Protocol & Access Node (sunflower-protocol)<br/>192.168.20.x — Service Control & Bastion"]
-    vmbr1 --> Relay["CT 250: WireGuard Egress Router (sunflower-relay)<br/>eth0: 192.168.20.x (Static-Port Outbound NAT)<br/>eth1: 192.168.50.1/24 | Default Route -> wg0"]
+    vmbr1 --> AppHost["CT 400: marigold<br/>Docker Runtime +<br/>Gluetun Killswitch"]
+    vmbr1 --> Proto["CT 200: sunflower-protocol<br/>192.168.20.x<br/>Control & Bastion Node"]
+    vmbr1 --> Relay["CT 250: sunflower-relay<br/>eth0: 192.168.20.x<br/>eth1: 192.168.50.1/24<br/>Default Route -> wg0"]
     
-    Proto -.->|"Gated Activation Dependency"| Relay
-    Relay --> vmbr2["Secondary Isolated Switch (vmbr2)<br/>192.168.50.0/24 — Air-Gapped From WAN"]
-    vmbr2 --> Sunflower["VM 300: Restricted Client VM (sunflower)<br/>Independent of Admin VPN — Online Only When Protocol + Relay Active"]
+    Proto -.->|"Activation Gate"| Relay
+    Relay --> vmbr2["Isolated Switch (vmbr2)<br/>192.168.50.0/24<br/>Air-Gapped From WAN"]
+    vmbr2 --> Sunflower["VM 300: sunflower<br/>Strict Egress Client<br/>Online Only via Relay"]
 ```
 
 ---
